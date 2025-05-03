@@ -1,27 +1,42 @@
-from flask import Flask, request import requests
+from flask import Flask, request, jsonify
 
-app = Flask(name)
+app = Flask(__name__)
 
-قيم ثابتة مباشرة
+# تحقق من التوكن (يجب استبداله بتوكنك الخاص)
+VERIFY_TOKEN = "YOUR_VERIFY_TOKEN"
 
-VERIFY_TOKEN = "idriss123"  # ضع رمز التحقق الذي تختاره PAGE_ACCESS_TOKEN = "EAATaVudqKO4BOZBtKh73Rq2L5BDoGFZAdCjN18bIoqyDxf90OOwsrDWpbro9ZCxuv6LBA7J6YMXW1QYDj8m20j60MWlPz42WoEs6fCwxnZAA6mTDwZA4taloBEBhbMwbOzwZCDIM6e1bUdTmmQ3EYu7ZBPZAT3rQk0jrhpmJzSVBlqrQrRVigB837ZBNufZBF212nHogZDZD"  # ضع التوكن الخاص بصفحتك هنا
+@app.route('/webhook', methods=['GET'])
+def verify_webhook():
+    # تحقق من التوكن عند إعداد الويب هوك
+    token = request.args.get('hub.verify_token')
+    if token == VERIFY_TOKEN:
+        return request.args.get('hub.challenge')
+    return "Verification failed"
 
-@app.route('/') def home(): return 'Bot is running!'
-
-@app.route('/webhook', methods=['GET', 'POST']) def webhook(): if request.method == 'GET': if request.args.get('hub.verify_token') == VERIFY_TOKEN: return request.args.get('hub.challenge') return 'Invalid verification token'
-
-elif request.method == 'POST':
+@app.route('/webhook', methods=['POST'])
+def handle_message():
     data = request.get_json()
-    for entry in data.get("entry", []):
-        for message_event in entry.get("messaging", []):
-            sender_id = message_event["sender"]["id"]
-            if "message" in message_event:
-                text = message_event["message"].get("text")
-                if text:
-                    send_message(sender_id, "أهلاً! قلت: " + text)
-    return "ok", 200
+    # استخراج الرسالة الواردة
+    if data['object'] == 'page':
+        for entry in data['entry']:
+            for messaging_event in entry['messaging']:
+                sender_id = messaging_event['sender']['id']
+                # إرسال رد "مرحبًا"
+                send_message(sender_id, "مرحبًا!")
+    return jsonify({"status": "ok"})
 
-def send_message(recipient_id, message_text): url = "https://graph.facebook.com/v17.0/me/messages" params = {"access_token": PAGE_ACCESS_TOKEN} headers = {"Content-Type": "application/json"} data = { "recipient": {"id": recipient_id}, "message": {"text": message_text} } requests.post(url, params=params, headers=headers, json=data)
+def send_message(recipient_id, message):
+    # استبدال "YOUR_PAGE_ACCESS_TOKEN" برمز الوصول الخاص بصفحتك
+    access_token = "YOUR_PAGE_ACCESS_TOKEN"
+    url = f"https://graph.facebook.com/v19.0/me/messages?access_token={access_token}"
+    headers = {'Content-Type': 'application/json'}
+    data = {
+        "recipient": {"id": recipient_id},
+        "message": {"text": message}
+    }
+    import requests
+    response = requests.post(url, json=data, headers=headers)
+    return response.json()
 
-if name == 'main': app.run()
-
+if __name__ == '__main__':
+    app.run(port=5000, debug=True)
